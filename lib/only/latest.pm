@@ -73,6 +73,7 @@ sub import {
 
 	return undef unless $cur_file;
 	open my($fh), $cur_file or return undef;
+	$INC{$file} = $cur_file;
 	return $fh;
     }
 }
