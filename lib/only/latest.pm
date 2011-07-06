@@ -38,19 +38,27 @@ come after all C<use lib> statements.
 If you wish to limit this module to some specific targets, list them as
 the import arguments, like this:
 
-    use only::latest qw(CGI CGI::Fast);
+    use only::latest 'CGI', 'CGI::Fast', qr/^Company::/;
     use DBI; # not affected
 
 =cut
 
 sub import {
     my ($class, @pkgs) = @_;
-    my %intercept = map { s{::}{/}g; "$_.pm" => 1 } @pkgs;
+    my @intercept_re = grep {ref($_) eq 'Regexp'} @pkgs;
+    my %intercept = map { s{::}{/}g; "$_.pm" => 1 }
+        grep {ref($_) ne 'Regexp'} @pkgs;
     my $cur_prefix;
 
     unshift @INC, sub {
 	my ($self, $file) = @_;
-	return undef if %intercept and !$intercept{$file};
+
+	my $intercept;
+	$intercept++ if !@pkgs;
+	$intercept++ if %intercept && $intercept{$file};
+	my $pkg = $file; $pkg =~ s{/}{::}g; $pkg =~ s/\.pm$//;
+	$intercept++ if @intercept_re && grep {$pkg =~ /$_/} @intercept_re;
+	return undef unless $intercept;
 
 	my ($cur_ver, $cur_file) = (-1, undef);
 	foreach my $prefix ($cur_prefix, grep { $_ ne $cur_prefix } @INC) {
@@ -114,7 +122,7 @@ Part of code derived from L<ExtUtils::MM_Unix>.
 
 Copyright 2003 by Autrijus Tang E<lt>autrijus@autrijus.orgE<gt>.
 
-This program is free software; you can redistribute it and/or 
+This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 See L<http://www.perl.com/perl/misc/Artistic.html>
